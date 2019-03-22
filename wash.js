@@ -5,6 +5,7 @@ const SUBOP_SPAWN = 1;
 class WasmShell extends HTMLElement {
   connectedCallback(){
     let mod = this.getAttribute("module");
+    this.autorun = this.getAttribute("autorun");
     this.next_pid = 0;
     this.processes = {};
     this.spawn(mod==null?"wash.wasm":mod);
@@ -23,6 +24,9 @@ class WasmShell extends HTMLElement {
             }
             let el = this.env.allocator().a(component);
             this.exports.sys_call_handler(0,0,el,pid,0,0);
+            if(component.autorun !== null){
+              component.spawn(component.autorun)
+            }
             return 0
           }
           else if(subOp == SUBOP_SPAWN){

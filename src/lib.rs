@@ -9,7 +9,6 @@ pub fn sys_call_handler(op: i32, sub_op: i32, param_a: i32, param_b: i32, param_
     if op == OP_SYSTEM {
         if sub_op == SUBOP_INITIALIZATION {
             element::set_inner_html(param_a, "terminal goes here");
-            sys_call(OP_SYSTEM, SUBOP_SPAWN, to_cstring("helloworld.wasm"), 0, 0, 0);
         }
     }
 }

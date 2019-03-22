@@ -40,7 +40,7 @@ class WasmShell extends HTMLElement {
             if(pid != 0 && paramA != 0){
               throw new Error("no support for cross process talk right now")
             } else {
-              return components.processes[0].exports.sys_call_handler(op,subOp,pid,paramB,paramC,paramD)
+              return component.processes[0].exports.sys_call_handler(op,subOp,pid,paramB,paramC,paramD)
             }
           }
         }

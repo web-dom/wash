@@ -51,6 +51,8 @@ impl Shell {
                 self.key_down_listener = create_event_listener();
                 eventtarget::add_event_listener(self.document,"keydown",self.key_down_listener);
                 self.print("welcome to WASH, type \"help\" to see a list of commands\n");
+                self.characters[self.pos] = 124;
+                self.render();
             } else if sub_op == SUBOP_STDOUT_PUTC {
                 self.stdout.push(param_b as u8);
             } else if sub_op == SUBOP_STDOUT_FLUSH {
@@ -102,8 +104,12 @@ impl Shell {
         let s = from_utf8(&self.command).unwrap();
         if s == "help" {
             self.print("embarassing...there doesn't seem to be any commands\n");
+            self.characters[self.pos] = 124;
+            self.render();
         } else {
             self.print("command not found\n");
+            self.characters[self.pos] = 124;
+            self.render();
         }
         self.command = vec![];
     }

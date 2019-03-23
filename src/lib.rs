@@ -1,3 +1,4 @@
+use core::str::from_utf8;
 use web_dom::*;
 use wash_syscall::*;
 use ref_thread_local::RefThreadLocal;
@@ -17,7 +18,8 @@ struct Shell {
     width: usize,
     height: usize,
     pos:usize,
-    key_down_listener: EventListener
+    key_down_listener: EventListener,
+    command: Vec<u8>
 }
 
 ref_thread_local! {
@@ -48,6 +50,7 @@ impl Shell {
                 drawing::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
                 self.key_down_listener = create_event_listener();
                 eventtarget::add_event_listener(self.document,"keydown",self.key_down_listener);
+                self.print("welcome to WASH, type \"help\" to see a list of commands\n");
             } else if sub_op == SUBOP_STDOUT_PUTC {
                 self.stdout.push(param_b as u8);
             } else if sub_op == SUBOP_STDOUT_FLUSH {
@@ -61,6 +64,20 @@ impl Shell {
             }
         }
         0
+    }
+
+    fn print(&mut self,s:&str){
+        let cs:Vec<char> = s.chars().collect();
+        for i in 0..cs.len(){
+            let c = cs[i] as u8;
+            self.characters[self.pos] = c;
+            if c == 10 {
+                self.pos = (self.pos/self.width+1)*self.width;
+            } else {
+                self.pos += 1;
+            }
+        }
+        self.render();
     }
 
     fn handle_event(&mut self, listener:EventListener, event:Event){
@@ -81,20 +98,41 @@ impl Shell {
         }
     }
 
+    fn execute(&mut self){
+        let s = from_utf8(&self.command).unwrap();
+        if s == "help" {
+            self.print("embarassing...there doesn't seem to be any commands\n");
+        } else {
+            self.print("command not found\n");
+        }
+        self.command = vec![];
+    }
+
     fn process_char(&mut self, k:u8){
         if k == 13 {
-            window::alert(self.window,"Execute!");
+            self.characters[self.pos] = 32;
+            self.pos = (self.pos/self.width+1)*self.width;
+            self.characters[self.pos] = 124;
+            self.execute();
+            return;
+        }
+        if k == 10 {
+            self.characters[self.pos] = 32;
+            self.pos = (self.pos/self.width+1)*self.width;
+            self.characters[self.pos] = 124;
             return;
         }
         if k == 8 {
-            if self.pos == 0 {
+            if self.command.len() == 0 {
                 return;
             }
+            self.command.pop();
             self.characters[self.pos] = 32;
             self.pos -=1;
             self.characters[self.pos] = 124;
             return;
         }
+        self.command.push(k);
         self.characters[self.pos] = k;
         self.pos += 1;
         self.characters[self.pos] = 124;
@@ -104,7 +142,7 @@ impl Shell {
         drawing::set_fill_style(self.ctx, "black");
         drawing::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
         drawing::set_fill_style(self.ctx, "white");
-        drawing::set_font(self.ctx, "20px monospace");
+        drawing::set_font(self.ctx, "18px monospace");
         for x in 0..self.width {
             for y in 0..self.height {
                 drawing::fill_text(self.ctx,&(self.characters[y*self.width+x] as char).to_string(), 0.0+(800.0/self.width as f32)*x as f32, 15.0+(600.0/self.height as f32)*y as f32,1000.0);

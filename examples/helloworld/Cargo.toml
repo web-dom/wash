@@ -8,3 +8,4 @@ crate-type =["cdylib"]
 
 [dependencies]
 web-dom = "0.0.14"
+wash-syscall = {path="../../wash-syscall"}

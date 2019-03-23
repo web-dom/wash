@@ -6,6 +6,7 @@ extern crate ref_thread_local;
 
 #[derive(Default)]
 struct Shell {
+    window: DOMReference,
     document: DOMReference,
     component: DOMReference,
     stdout: Vec<u8>,
@@ -16,6 +17,7 @@ struct Shell {
     width: usize,
     height: usize,
     pos:usize,
+    key_down_listener: EventListener
 }
 
 ref_thread_local! {
@@ -30,7 +32,8 @@ impl Shell {
                 self.height = 40;
                 self.characters = vec![32; self.width*self.height];
                 self.component = param_a;
-                self.document = window::get_document(window());
+                self.window = window();
+                self.document = window::get_document(self.window);
                 self.canvas = document::create_element(self.document,"canvas",UNDEFINED);
                 element::set_attribute(self.canvas,"style",r#"image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-crisp-edges;
@@ -43,12 +46,13 @@ impl Shell {
                 self.ctx = htmlcanvas::get_context(self.canvas, "2d");
                 drawing::set_fill_style(self.ctx, "black");
                 drawing::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
+                self.key_down_listener = create_event_listener();
+                eventtarget::add_event_listener(self.document,"keydown",self.key_down_listener);
             } else if sub_op == SUBOP_STDOUT_PUTC {
                 self.stdout.push(param_b as u8);
             } else if sub_op == SUBOP_STDOUT_FLUSH {
                 for i in 0..self.stdout.len() {
-                    self.characters[self.pos] = self.stdout[i];
-                    self.pos += 1;
+                    self.process_char(self.stdout[i]);
                 }
                 self.render();
                 self.stdout = vec![];
@@ -57,6 +61,43 @@ impl Shell {
             }
         }
         0
+    }
+
+    fn handle_event(&mut self, listener:EventListener, event:Event){
+        if listener == self.key_down_listener {
+            let key = keyboardevent::get_key(event);
+            let key_chars:Vec<char> = key.chars().collect();
+            if key.len() == 1 {
+                let key_code = key_chars[0] as u8;
+                self.process_char(key_code);
+            } else if key == "Backspace" {
+                self.process_char(8);
+            } else if key == "Enter" {
+                self.process_char(13);
+            }else {
+                return;
+            }
+            self.render();
+        }
+    }
+
+    fn process_char(&mut self, k:u8){
+        if k == 13 {
+            window::alert(self.window,"Execute!");
+            return;
+        }
+        if k == 8 {
+            if self.pos == 0 {
+                return;
+            }
+            self.characters[self.pos] = 32;
+            self.pos -=1;
+            self.characters[self.pos] = 124;
+            return;
+        }
+        self.characters[self.pos] = k;
+        self.pos += 1;
+        self.characters[self.pos] = 124;
     }
 
     fn render(&self){
@@ -71,6 +112,11 @@ impl Shell {
         }
 
     }
+}
+
+#[no_mangle]
+pub fn callback(listener:EventListener,event:Event) -> () {
+    SHELL.borrow_mut().handle_event(listener,event);
 }
 
 #[no_mangle]

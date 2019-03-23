@@ -60,7 +60,7 @@ impl Shell {
                     let mut el = element::get_first_element_child(self.component);
                     for i in 0..child_count {
                         if i != 0 {
-                            el = node::get_next_sibling(el);
+                            el = element::get_next_element_sibling(el);
                         }
                         self.known_commands.insert(element::get_attribute(el,"name"),element::get_attribute(el,"module"));
                     }
@@ -101,6 +101,7 @@ impl Shell {
             if key.len() == 1 {
                 let key_code = key_chars[0] as u8;
                 self.process_char(key_code);
+                self.command.push(key_code);
             } else if key == "Backspace" {
                 self.process_char(8);
             } else if key == "Enter" {
@@ -163,7 +164,6 @@ impl Shell {
             self.characters[self.pos] = 124;
             return;
         }
-        self.command.push(k);
         self.characters[self.pos] = k;
         self.pos += 1;
         self.characters[self.pos] = 124;

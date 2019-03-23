@@ -4,6 +4,18 @@
     <title>wash</title>
     <script src="https://unpkg.com/web-dom@0.0.15/web-dom.js"></script>
     <script src="../../wash.js"></script>
+    <style>
+      wasm-shell {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-left: -400px;
+        margin-top: -300px;
+      }
+      body {
+        background-color: #030303;
+      }
+    </style>
   </head>
   <body>
     <wasm-shell module="../../wash.wasm" autorun="helloworld.wasm"></wasm-shell>

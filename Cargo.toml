@@ -10,6 +10,6 @@ license = "MIT"
 crate-type =["cdylib"]
 
 [dependencies]
-web-dom = "0.0.14"
+web-dom = "0.0.15"
 wash-syscall = {path="wash-syscall"}
 ref_thread_local = "0.0"

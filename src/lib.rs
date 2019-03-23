@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use core::str::from_utf8;
 use web_dom::*;
 use wash_syscall::*;
@@ -19,7 +20,8 @@ struct Shell {
     height: usize,
     pos:usize,
     key_down_listener: EventListener,
-    command: Vec<u8>
+    command: Vec<u8>,
+    known_commands: HashMap<String,String>
 }
 
 ref_thread_local! {
@@ -53,6 +55,16 @@ impl Shell {
                 self.print("welcome to WASH, type \"help\" to see a list of commands\n");
                 self.characters[self.pos] = 124;
                 self.render();
+                let child_count = element::get_child_element_count(self.component);
+                if child_count > 0 {
+                    let mut el = element::get_first_element_child(self.component);
+                    for i in 0..child_count {
+                        if i != 0 {
+                            el = node::get_next_sibling(el);
+                        }
+                        self.known_commands.insert(element::get_attribute(el,"name"),element::get_attribute(el,"module"));
+                    }
+                }
             } else if sub_op == SUBOP_STDOUT_PUTC {
                 self.stdout.push(param_b as u8);
             } else if sub_op == SUBOP_STDOUT_FLUSH {
@@ -103,13 +115,26 @@ impl Shell {
     fn execute(&mut self){
         let s = from_utf8(&self.command).unwrap();
         if s == "help" {
-            self.print("embarassing...there doesn't seem to be any commands\n");
-            self.characters[self.pos] = 124;
-            self.render();
+            let keys:Vec<String> = self.known_commands.keys().map(|x|x.clone()).collect();
+            if keys.len() == 0 {
+               self.print("embarassing...there doesn't seem to be any commands\n");
+               self.characters[self.pos] = 124;
+               self.render();
+           } else {
+               self.print(&keys.join(" "));
+               self.print("\n");
+               self.characters[self.pos] = 124;
+               self.render();
+           }
         } else {
-            self.print("command not found\n");
-            self.characters[self.pos] = 124;
-            self.render();
+            let cmd = self.known_commands.get(s);
+            if cmd.is_some() {
+                sys_call(OP_SYSTEM, SUBOP_SPAWN, to_cstring(cmd.unwrap()), 0, 0, 0);
+            } else {
+                self.print("command not found\n");
+                self.characters[self.pos] = 124;
+                self.render();
+            }
         }
         self.command = vec![];
     }

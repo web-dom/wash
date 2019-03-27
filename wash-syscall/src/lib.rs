@@ -6,6 +6,12 @@ pub const SUBOP_STDOUT_PUTC: i32 = 2;
 pub const SUBOP_STDOUT_FLUSH: i32 = 3;
 pub const SUBOP_STDIN_PUTC: i32 = 4;
 pub const SUBOP_STDIN_FLUSH: i32 = 5;
+pub const SUBOP_CURRENT_DIR: i32 = 6;
+pub const SUBOP_CURRENT_CHANGE_DIR: i32 = 7;
+pub const SUBOP_CURRENT_OPEN_FILE: i32 = 8;
+pub const SUBOP_CURRENT_DELETE_FILE: i32 = 9;
+pub const SUBOP_CURRENT_WRITE_FILE: i32 = 10;
+pub const SUBOP_CURRENT_APPEND_FILE: i32 = 10;
 
 extern "C" {
     fn global_sys_call(

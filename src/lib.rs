@@ -22,6 +22,7 @@ struct Shell {
     key_down_listener: EventListener,
     command: Vec<u8>,
     known_commands: HashMap<String, String>,
+    current_directory: String,
 }
 
 ref_thread_local! {
@@ -40,6 +41,7 @@ impl Shell {
     ) -> i32 {
         if op == OP_SYSTEM {
             if sub_op == SUBOP_INITIALIZATION {
+                self.current_directory = "/".to_owned();
                 self.width = 60;
                 self.height = 40;
                 self.characters = vec![32; self.width * self.height];
@@ -80,6 +82,8 @@ impl Shell {
                         );
                     }
                 }
+            } else if sub_op == SUBOP_CURRENT_DIR {
+                //self.stdout.push(param_b as u8);
             } else if sub_op == SUBOP_STDOUT_PUTC {
                 self.stdout.push(param_b as u8);
             } else if sub_op == SUBOP_STDOUT_FLUSH {

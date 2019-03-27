@@ -46,7 +46,7 @@ impl Shell {
                 self.component = param_a;
                 self.window = window();
                 self.document = window::get_document(self.window);
-                self.canvas = document::create_element(self.document, "canvas", UNDEFINED);
+                self.canvas = document::create_element(self.document, "canvas");
                 element::set_attribute(
                     self.canvas,
                     "style",
@@ -60,14 +60,14 @@ impl Shell {
                 self.shadow = customelement::attach_shadow(self.component);
                 node::append_child(self.shadow, self.canvas);
                 self.ctx = htmlcanvas::get_context(self.canvas, "2d");
-                drawing::set_fill_style(self.ctx, "black");
-                drawing::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
+                canvas::set_fill_style(self.ctx, "black");
+                canvas::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
                 self.key_down_listener = create_event_listener();
                 eventtarget::add_event_listener(self.document, "keydown", self.key_down_listener);
                 self.print("welcome to WASH, type \"help\" to see a list of commands\n");
                 self.characters[self.pos] = 124;
                 self.render();
-                let child_count = element::get_child_element_count(self.component);
+                let child_count = element::get_child_element_count(self.component) as i32;
                 if child_count > 0 {
                     let mut el = element::get_first_element_child(self.component);
                     for i in 0..child_count {
@@ -75,8 +75,8 @@ impl Shell {
                             el = element::get_next_element_sibling(el);
                         }
                         self.known_commands.insert(
-                            element::get_attribute(el, "name"),
-                            element::get_attribute(el, "module"),
+                            convert_to_string(element::get_attribute(el, "name")),
+                            convert_to_string(element::get_attribute(el, "module")),
                         );
                     }
                 }
@@ -188,18 +188,17 @@ impl Shell {
     }
 
     fn render(&self) {
-        drawing::set_fill_style(self.ctx, "black");
-        drawing::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
-        drawing::set_fill_style(self.ctx, "white");
-        drawing::set_font(self.ctx, "18px monospace");
+        canvas::set_fill_style(self.ctx, "black");
+        canvas::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
+        canvas::set_fill_style(self.ctx, "white");
+        canvas::set_font(self.ctx, "18px monospace");
         for x in 0..self.width {
             for y in 0..self.height {
-                drawing::fill_text(
+                canvas::fill_text(
                     self.ctx,
                     &(self.characters[y * self.width + x] as char).to_string(),
                     0.0 + (800.0 / self.width as f32) * x as f32,
                     15.0 + (600.0 / self.height as f32) * y as f32,
-                    1000.0,
                 );
             }
         }

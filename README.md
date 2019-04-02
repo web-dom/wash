@@ -20,7 +20,7 @@ See a demo [here](https://web-dom.github.io/wash/examples/helloworld/)
 
 `wash` is meant to be very easily embeddable with a simple html element that defines what commands are available:
 
-```
+```html
 <wasm-shell module="wash.wasm">
   <command module="helloworld.wasm" name="hello"></command>
 </wasm-shell>

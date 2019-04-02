@@ -35,7 +35,7 @@ class WasmShell extends HTMLElement {
               },1)
           }
         } else {
-          let response = JSON.stringify({operation:"wash_process_command",command:command});
+          let response = JSON.stringify({operation:"wash_process_command",process:processId,command:command});
           let r = os.exports.joss_syscall_handler(os.makeString(response));
           let s = os.readStringFromMemory(r);
           return this.makeString(s);

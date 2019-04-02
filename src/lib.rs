@@ -1,7 +1,7 @@
 use core::str::from_utf8;
+use joss;
 use ref_thread_local::RefThreadLocal;
 use std::collections::HashMap;
-use wash_syscall::*;
 use web_dom::*;
 #[macro_use]
 extern crate ref_thread_local;
@@ -11,7 +11,6 @@ struct Shell {
     window: DOMReference,
     document: DOMReference,
     component: DOMReference,
-    stdout: Vec<u8>,
     canvas: DOMReference,
     ctx: DOMReference,
     shadow: DOMReference,
@@ -30,74 +29,69 @@ ref_thread_local! {
 }
 
 impl Shell {
-    fn handle_sys_call(
-        &mut self,
-        op: i32,
-        sub_op: i32,
-        param_a: i32,
-        param_b: i32,
-        param_c: i32,
-        param_d: i32,
-    ) -> i32 {
-        if op == OP_SYSTEM {
-            if sub_op == SUBOP_INITIALIZATION {
-                self.current_directory = "/".to_owned();
-                self.width = 60;
-                self.height = 40;
-                self.characters = vec![32; self.width * self.height];
-                self.component = param_a;
-                self.window = window();
-                self.document = window::get_document(self.window);
-                self.canvas = document::create_element(self.document, "canvas");
-                element::set_attribute(
-                    self.canvas,
-                    "style",
-                    r#"image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-crisp-edges;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;"#,
-                );
-                element::set_attribute(self.canvas, "width", "800");
-                element::set_attribute(self.canvas, "height", "600");
-                self.shadow = customelement::attach_shadow(self.component);
-                node::append_child(self.shadow, self.canvas);
-                self.ctx = htmlcanvas::get_context(self.canvas, "2d");
-                canvas::set_fill_style(self.ctx, "black");
-                canvas::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
-                self.key_down_listener = create_event_listener();
-                eventtarget::add_event_listener(self.document, "keydown", self.key_down_listener);
-                self.print("welcome to WASH, type \"help\" to see a list of commands\n");
-                self.characters[self.pos] = 124;
-                self.render();
-                let child_count = element::get_child_element_count(self.component) as i32;
-                if child_count > 0 {
-                    let mut el = element::get_first_element_child(self.component);
-                    for i in 0..child_count {
-                        if i != 0 {
-                            el = element::get_next_element_sibling(el);
-                        }
-                        self.known_commands.insert(
-                            convert_to_string(element::get_attribute(el, "name")),
-                            convert_to_string(element::get_attribute(el, "module")),
-                        );
+    fn handle_syscall(&mut self, response: CString) -> CString {
+        let str = to_string(response);
+        let command: serde_json::Value = serde_json::from_str(&str).unwrap();
+        let operation = match command["operation"].as_str() {
+            Some(o) => o,
+            _ => {
+                 console::error("unknown response");
+                 return -1;
+             }
+        };
+        if operation == "wash_os_registered" {
+            self.current_directory = "/".to_owned();
+            self.width = 60;
+            self.height = 40;
+            self.characters = vec![32; self.width * self.height];
+            self.component = command["root_component"].as_u64().unwrap() as i32;
+            self.window = window();
+            self.document = window::get_document(self.window);
+            self.canvas = document::create_element(self.document, "canvas");
+            element::set_attribute(
+                self.canvas,
+                "style",
+                r#"image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-crisp-edges;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;"#,
+            );
+            element::set_attribute(self.canvas, "width", "800");
+            element::set_attribute(self.canvas, "height", "600");
+            self.shadow = customelement::attach_shadow(self.component);
+            node::append_child(self.shadow, self.canvas);
+            self.ctx = htmlcanvas::get_context(self.canvas, "2d");
+            canvas::set_fill_style(self.ctx, "black");
+            canvas::fill_rect(self.ctx, 0.0, 0.0, 800.0, 600.0);
+            self.key_down_listener = create_event_listener();
+            eventtarget::add_event_listener(self.document, "keydown", self.key_down_listener);
+            self.print("welcome to WASH, type \"help\" to see a list of commands\n");
+            self.characters[self.pos] = 124;
+            self.render();
+            let child_count = element::get_child_element_count(self.component) as i32;
+            if child_count > 0 {
+                let mut el = element::get_first_element_child(self.component);
+                for i in 0..child_count {
+                    if i != 0 {
+                        el = element::get_next_element_sibling(el);
                     }
+                    self.known_commands.insert(
+                        to_string(element::get_attribute(el, "name")),
+                        to_string(element::get_attribute(el, "module")),
+                    );
                 }
-            } else if sub_op == SUBOP_CURRENT_DIR {
-                //self.stdout.push(param_b as u8);
-            } else if sub_op == SUBOP_STDOUT_PUTC {
-                self.stdout.push(param_b as u8);
-            } else if sub_op == SUBOP_STDOUT_FLUSH {
-                for i in 0..self.stdout.len() {
-                    self.process_char(self.stdout[i]);
-                }
-                self.render();
-                self.stdout = vec![];
-            } else {
-                console::error(&format!(
-                    "unknown system call: {} {} {} {} {} {}",
-                    op, sub_op, param_a, param_b, param_c, param_d
-                ));
             }
+        } else if operation == "wash_process_command" {
+            let op = command["command"]["operation"].as_str().unwrap();
+            if op == "get_command_line_arguments" {
+                return to_cstring(r#"{"arguments":["vim","hello.txt"]}"#);
+            } if op == "write_file" {
+                let text = command["command"]["text"].as_str().unwrap();
+                self.print(text);
+            }
+        } else {
+            console::error("unknown command");
+            return -1;
         }
         0
     }
@@ -152,7 +146,13 @@ impl Shell {
         } else {
             let cmd = self.known_commands.get(s);
             if cmd.is_some() {
-                sys_call(OP_SYSTEM, SUBOP_SPAWN, to_cstring(cmd.unwrap()), 0, 0, 0);
+                joss::syscall(
+                    format!(
+                        r#"{{"operation":"wash_spawn_process","path":"{}"}}"#,
+                        cmd.unwrap()
+                    )
+                    .to_owned(),
+                );
             } else {
                 self.print("command not found\n");
                 self.characters[self.pos] = 124;
@@ -215,20 +215,11 @@ pub fn callback(listener: EventListener, event: Event) -> () {
 }
 
 #[no_mangle]
-pub fn sys_call_handler(
-    op: i32,
-    sub_op: i32,
-    param_a: i32,
-    param_b: i32,
-    param_c: i32,
-    param_d: i32,
-) -> i32 {
-    SHELL
-        .borrow_mut()
-        .handle_sys_call(op, sub_op, param_a, param_b, param_c, param_d)
+pub fn joss_syscall_handler(response: CString) -> CString {
+    SHELL.borrow_mut().handle_syscall(response)
 }
 
 #[no_mangle]
 pub fn main() -> () {
-    sys_call(OP_SYSTEM, SUBOP_INITIALIZATION, 0, 0, 0, 0);
+    joss::syscall(r#"{"operation":"wash_register_os"}"#.to_owned());
 }

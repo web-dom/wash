@@ -4,45 +4,44 @@ const SUBOP_SPAWN = 1;
 
 class WasmShell extends HTMLElement {
   connectedCallback(){
+    this.nextProcessID = 0;
     let mod = this.getAttribute("module");
     this.autorun = this.getAttribute("autorun");
-    this.next_pid = 0;
-    this.processes = {};
-    this.spawn(mod==null?"wash.wasm":mod);
+    this.spawn(mod==null?"wash.wasm":mod,this.nextProcessID);
   }
 
-  spawn(wasmSrc){
-    let pid = this.next_pid;
-    this.next_pid += 1;
+  spawn(wasmSrc,processId,os){
+    let isOperatingSystem = processId == 0;
     let component = this;
-    this.processes[pid] = WebDOM.run(wasmSrc,{
-      global_sys_call:function(op,subOp,paramA,paramB,paramC,paramD){
-        if(op == OP_SYSTEM){
-          if(subOp == SUBOP_INITIALIZATION){
-            if(pid != 0){
-              throw new Error("only the first module can initialize");
-            }
+    component.nextProcessID+=1;
+    WebDOM.run(wasmSrc,{
+      joss_syscall:function(request){
+        let _request = this.readStringFromMemory(request);
+        let command = JSON.parse(_request);
+        if(command.operation == "wash_register_os"){
+          if(isOperatingSystem){
             let el = this.env.allocator().a(component);
-            this.exports.sys_call_handler(0,0,el,pid,0,0);
-            return 0
-          }
-          else if(subOp == SUBOP_SPAWN){
-            if(pid != 0){
-              throw new Error("only the first module can spawn");
-            }
-            component.spawn(this.readStringFromMemory(paramA))
-            return 0;
-          }
-          else {
-            if(pid != 0 && paramA != 0){
-              throw new Error("no support for cross process talk right now")
-            } else {
-              return component.processes[0].exports.sys_call_handler(op,subOp,pid,paramB,paramC,paramD)
-            }
+            let response = {
+              operation:"wash_os_registered",
+              root_component: el
+            };
+            this.exports.joss_syscall_handler(this.makeString(JSON.stringify(response)));
           }
         }
+        else if(command.operation == "wash_spawn_process"){
+          if(isOperatingSystem){
+              window.setTimeout(()=>{
+                  component.spawn(command.path,component.nextProcessID,this);
+              },1)
+          }
+        } else {
+          let response = JSON.stringify({operation:"wash_process_command",command:command});
+          let r = os.exports.joss_syscall_handler(os.makeString(response));
+          let s = os.readStringFromMemory(r);
+          return this.makeString(s);
+        }
       }
-    })
+    },function(){})
   }
 }
 
